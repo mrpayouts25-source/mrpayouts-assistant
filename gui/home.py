@@ -26,25 +26,88 @@ class Home(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         self.title("MrPayouts Assistant")
-        self.geometry("1250x740")
+        self.geometry("1280x760")
 
         self.current_trade = None
 
         self.build_ui()
 
     def build_ui(self):
-        title = ctk.CTkLabel(
-            self,
-            text="MrPayouts Assistant",
-            font=("Arial", 30, "bold")
-        )
-        title.pack(pady=20)
+        self.container = ctk.CTkFrame(self)
+        self.container.pack(fill="both", expand=True)
 
-        body = ctk.CTkFrame(self)
+        self.sidebar = ctk.CTkFrame(self.container, width=220)
+        self.sidebar.pack(side="left", fill="y", padx=15, pady=15)
+        self.sidebar.pack_propagate(False)
+
+        self.main = ctk.CTkFrame(self.container)
+        self.main.pack(side="right", fill="both", expand=True, padx=(0, 15), pady=15)
+
+        ctk.CTkLabel(
+            self.sidebar,
+            text="MRPAYOUTS",
+            font=("Arial", 26, "bold")
+        ).pack(pady=(25, 5))
+
+        ctk.CTkLabel(
+            self.sidebar,
+            text="Assistant",
+            font=("Arial", 14)
+        ).pack(pady=(0, 30))
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="New Trade",
+            command=self.show_new_trade
+        ).pack(fill="x", padx=20, pady=8)
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="Open Trades",
+            command=self.open_trades
+        ).pack(fill="x", padx=20, pady=8)
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="History",
+            command=self.open_history
+        ).pack(fill="x", padx=20, pady=8)
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="Dashboard",
+            command=self.open_dashboard
+        ).pack(fill="x", padx=20, pady=8)
+
+        ctk.CTkLabel(
+            self.sidebar,
+            text="v1.1",
+            font=("Arial", 12)
+        ).pack(side="bottom", pady=20)
+
+        self.show_new_trade()
+
+    def clear_main(self):
+        for widget in self.main.winfo_children():
+            widget.destroy()
+
+    def show_new_trade(self):
+        self.clear_main()
+
+        ctk.CTkLabel(
+            self.main,
+            text="New Trade",
+            font=("Arial", 30, "bold")
+        ).pack(pady=(25, 15))
+
+        body = ctk.CTkFrame(self.main)
         body.pack(fill="both", expand=True, padx=20, pady=20)
 
         left = ctk.CTkFrame(body)
         left.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        right = ctk.CTkFrame(body)
+        right.pack(side="right", fill="both", expand=True, padx=(10, 0))
 
         ctk.CTkLabel(left, text="cTrader Share Link").pack(anchor="w", padx=20, pady=(20, 5))
 
@@ -77,15 +140,23 @@ class Home(ctk.CTk):
         self.reason = ctk.CTkTextbox(left, width=500, height=180)
         self.reason.pack(padx=20)
 
-        ctk.CTkButton(left, text="Preview", command=self.preview_trade).pack(pady=(25, 10))
-        ctk.CTkButton(left, text="Send To Telegram", command=self.send_trade).pack()
-        ctk.CTkButton(left, text="Clear", command=self.clear).pack(pady=10)
-        ctk.CTkButton(left, text="Open Trades", command=self.open_trades).pack()
-        ctk.CTkButton(left, text="History", command=self.open_history).pack(pady=10)
-        ctk.CTkButton(left, text="Dashboard", command=self.open_dashboard).pack()
+        ctk.CTkButton(
+            left,
+            text="Preview",
+            command=self.preview_trade
+        ).pack(pady=(25, 10))
 
-        right = ctk.CTkFrame(body)
-        right.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        ctk.CTkButton(
+            left,
+            text="Send To Telegram",
+            command=self.send_trade
+        ).pack()
+
+        ctk.CTkButton(
+            left,
+            text="Clear",
+            command=self.clear
+        ).pack(pady=10)
 
         ctk.CTkLabel(
             right,
@@ -164,7 +235,15 @@ class Home(ctk.CTk):
 
     def clear(self):
         self.current_trade = None
-        self.link.delete(0, "end")
-        self.entry.delete(0, "end")
-        self.reason.delete("1.0", "end")
-        self.preview.delete("1.0", "end")
+
+        if hasattr(self, "link"):
+            self.link.delete(0, "end")
+
+        if hasattr(self, "entry"):
+            self.entry.delete(0, "end")
+
+        if hasattr(self, "reason"):
+            self.reason.delete("1.0", "end")
+
+        if hasattr(self, "preview"):
+            self.preview.delete("1.0", "end")

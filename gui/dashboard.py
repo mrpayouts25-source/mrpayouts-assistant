@@ -1,5 +1,8 @@
 import customtkinter as ctk
-import sqlite3
+from PIL import Image
+
+from core.analytics import calculate_dashboard_stats
+from core.charts import generate_equity_curve
 
 
 class Dashboard(ctk.CTkToplevel):
@@ -8,57 +11,54 @@ class Dashboard(ctk.CTkToplevel):
         super().__init__(master)
 
         self.title("Dashboard")
-        self.geometry("750x600")
+        self.geometry("1000x800")
 
         self.build_ui()
 
     def build_ui(self):
-        conn = sqlite3.connect("database.db")
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT COUNT(*) FROM trades")
-        total_trades = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM trades WHERE status='OPEN'")
-        open_trades = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM trades WHERE result='TP'")
-        wins = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM trades WHERE result='SL'")
-        losses = cursor.fetchone()[0]
-
-        cursor.execute("SELECT IFNULL(SUM(profit), 0) FROM trades")
-        net_profit = cursor.fetchone()[0]
-
-        conn.close()
-
-        if wins + losses > 0:
-            win_rate = round((wins / (wins + losses)) * 100, 2)
-        else:
-            win_rate = 0
+        stats = calculate_dashboard_stats()
 
         ctk.CTkLabel(
             self,
             text="Dashboard",
             font=("Arial", 30, "bold")
-        ).pack(pady=25)
+        ).pack(pady=20)
 
-        frame = ctk.CTkFrame(self)
+        frame = ctk.CTkScrollableFrame(self, width=930, height=720)
         frame.pack(fill="both", expand=True, padx=30, pady=20)
 
-        stats = [
-            ("Total Trades", total_trades),
-            ("Open Trades", open_trades),
-            ("Wins", wins),
-            ("Losses", losses),
-            ("Win Rate", f"{win_rate}%"),
-            ("Net Profit", f"£{net_profit:.2f}")
+        chart_path = generate_equity_curve()
+        chart_image = ctk.CTkImage(
+            light_image=Image.open(chart_path),
+            dark_image=Image.open(chart_path),
+            size=(850, 425)
+        )
+
+        chart_label = ctk.CTkLabel(
+            frame,
+            text="",
+            image=chart_image
+        )
+        chart_label.pack(pady=(10, 25))
+
+        stat_items = [
+            ("Closed Trades", stats["total_closed"]),
+            ("Wins", stats["wins"]),
+            ("Losses", stats["losses"]),
+            ("Win Rate", f"{stats['win_rate']}%"),
+            ("Total Profit", f"£{stats['total_profit']}"),
+            ("Average Win", f"£{stats['average_win']}"),
+            ("Average Loss", f"£{stats['average_loss']}"),
+            ("Largest Win", f"£{stats['largest_win']}"),
+            ("Largest Loss", f"£{stats['largest_loss']}"),
+            ("Profit Factor", stats["profit_factor"]),
+            ("Average RR", f"1:{stats['average_rr']}"),
+            ("Expectancy", f"£{stats['expectancy']}"),
         ]
 
-        for title, value in stats:
+        for title, value in stat_items:
             card = ctk.CTkFrame(frame)
-            card.pack(fill="x", pady=10)
+            card.pack(fill="x", pady=8, padx=10)
 
             ctk.CTkLabel(
                 card,
