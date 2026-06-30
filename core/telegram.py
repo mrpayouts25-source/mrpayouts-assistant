@@ -1,6 +1,5 @@
 import os
 import requests
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,17 +12,34 @@ def send_message(message):
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-    response = requests.post(
-
+    r = requests.post(
         url,
-
         data={
-
             "chat_id": CHAT_ID,
-            "text": message
-
+            "text": message,
+            "parse_mode": "HTML"
         }
-
     )
 
-    return response.ok
+    return r.ok
+
+
+def send_photo(image_path, caption=""):
+
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+
+    with open(image_path, "rb") as image:
+
+        r = requests.post(
+            url,
+            data={
+                "chat_id": CHAT_ID,
+                "caption": caption,
+                "parse_mode": "HTML"
+            },
+            files={
+                "photo": image
+            }
+        )
+
+    return r.ok

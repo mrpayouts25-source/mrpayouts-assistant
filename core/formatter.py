@@ -1,53 +1,25 @@
 def format_trade(trade):
-    return f"""📊 TRADE {trade['trade_number']}
+    return f"""📊 <b>{trade['trade_number']}</b> | <b>{trade['symbol']} {trade['direction']}</b>
 
-{trade['symbol']} • {trade['direction']}
+Entry: <code>{trade['entry']}</code>
+SL: <code>{trade['sl']}</code>
+TP: <code>{trade['tp']}</code>
+Risk: <code>{trade['risk']}%</code>
+RR: <code>1:{trade['rr']}</code>
 
-━━━━━━━━━━━━━━━━━━
+🧠 {trade['reason']}
 
-📍 Entry
-{trade['entry']}
-
-🛑 Stop Loss
-{trade['sl']}
-
-🎯 Take Profit
-{trade['tp']}
-
-⚖️ Risk
-{trade['risk']}%
-
-📈 RR
-1:{trade['rr']}
-
-🧠 Reason
-
-{trade['reason']}
-
-━━━━━━━━━━━━━━━━━━
-
-⚠️ Personal trade.
-Not financial advice.
-"""
-
+⚠️ Personal trade. Not financial advice."""
+    
 
 def format_result(trade_number, symbol, direction, result, profit):
     emoji = "✅" if result == "TP" else "❌" if result == "SL" else "⚪"
 
-    return f"""{emoji} TRADE RESULT
+    return f"""{emoji} <b>TRADE RESULT</b>
 
-{trade_number}
+<b>{trade_number}</b> | <b>{symbol} {direction}</b>
 
-{symbol} • {direction}
+Result: <code>{result}</code>
+P/L: <code>£{profit}</code>
 
-Result
-{result}
-
-P/L
-£{profit}
-
-━━━━━━━━━━━━━━━━━━
-
-⚠️ Personal trade.
-Not financial advice.
-"""
+⚠️ Personal trade. Not financial advice."""

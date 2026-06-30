@@ -4,12 +4,13 @@ from tkinter import messagebox
 from core.parser import parse_ctrader_link
 from core.calculator import calculate_rr
 from core.formatter import format_trade
-from core.telegram import send_message
+from core.telegram import send_photo
 from core.database import (
     save_trade,
     get_next_trade_number
 )
 from core.clipboard import paste
+from core.image_generator import generate_trade_image
 
 from gui.history import History
 from gui.open_trades import OpenTrades
@@ -32,7 +33,6 @@ class Home(ctk.CTk):
         self.build_ui()
 
     def build_ui(self):
-
         title = ctk.CTkLabel(
             self,
             text="MrPayouts Assistant",
@@ -135,14 +135,23 @@ class Home(ctk.CTk):
             messagebox.showwarning("Warning", "Preview a trade first.")
             return
 
-        success = send_message(self.current_trade["message"])
+        try:
+            image_path = generate_trade_image(self.current_trade)
 
-        if success:
-            save_trade(self.current_trade)
-            messagebox.showinfo("Success", "Trade posted.")
-            self.clear()
-        else:
-            messagebox.showerror("Error", "Telegram failed.")
+            sent = send_photo(
+                image_path,
+                caption=self.current_trade["message"]
+            )
+
+            if sent:
+                save_trade(self.current_trade)
+                messagebox.showinfo("Success", "Trade image posted.")
+                self.clear()
+            else:
+                messagebox.showerror("Error", "Telegram failed.")
+
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
     def open_history(self):
         History(self)

@@ -3,7 +3,8 @@ from tkinter import messagebox, simpledialog
 
 from core.database import get_open_trades, close_trade
 from core.formatter import format_result
-from core.telegram import send_message
+from core.telegram import send_photo
+from core.image_generator import generate_result_image
 
 
 class OpenTrades(ctk.CTkToplevel):
@@ -132,11 +133,26 @@ class OpenTrades(ctk.CTkToplevel):
             profit
         )
 
-        send_message(result_message)
-
-        messagebox.showinfo(
-            "Trade Closed",
-            f"Trade closed as {result} and posted to Telegram."
+        image_path = generate_result_image(
+            trade,
+            result,
+            profit
         )
+
+        sent = send_photo(
+            image_path,
+            caption=result_message
+        )
+
+        if sent:
+            messagebox.showinfo(
+                "Trade Closed",
+                f"Trade closed as {result} and posted to Telegram."
+            )
+        else:
+            messagebox.showerror(
+                "Error",
+                "Trade closed, but Telegram failed."
+            )
 
         self.load_trades()
