@@ -1,20 +1,22 @@
+import sqlite3
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
+from PIL import Image
 
 from core.parser import parse_ctrader_link
 from core.calculator import calculate_rr
-from core.formatter import format_trade
+from core.formatter import format_trade, format_result
 from core.telegram import send_photo
 from core.database import (
     save_trade,
-    get_next_trade_number
+    get_next_trade_number,
+    get_open_trades,
+    close_trade
 )
 from core.clipboard import paste
-from core.image_generator import generate_trade_image
-
-from gui.history import History
-from gui.open_trades import OpenTrades
-from gui.dashboard import Dashboard
+from core.image_generator import generate_trade_image, generate_result_image
+from core.analytics import calculate_dashboard_stats
+from core.charts import generate_equity_curve
 
 
 class Home(ctk.CTk):
@@ -43,47 +45,15 @@ class Home(ctk.CTk):
         self.main = ctk.CTkFrame(self.container)
         self.main.pack(side="right", fill="both", expand=True, padx=(0, 15), pady=15)
 
-        ctk.CTkLabel(
-            self.sidebar,
-            text="MRPAYOUTS",
-            font=("Arial", 26, "bold")
-        ).pack(pady=(25, 5))
+        ctk.CTkLabel(self.sidebar, text="MRPAYOUTS", font=("Arial", 26, "bold")).pack(pady=(25, 5))
+        ctk.CTkLabel(self.sidebar, text="Assistant", font=("Arial", 14)).pack(pady=(0, 30))
 
-        ctk.CTkLabel(
-            self.sidebar,
-            text="Assistant",
-            font=("Arial", 14)
-        ).pack(pady=(0, 30))
+        ctk.CTkButton(self.sidebar, text="New Trade", command=self.show_new_trade).pack(fill="x", padx=20, pady=8)
+        ctk.CTkButton(self.sidebar, text="Open Trades", command=self.show_open_trades).pack(fill="x", padx=20, pady=8)
+        ctk.CTkButton(self.sidebar, text="History", command=self.show_history).pack(fill="x", padx=20, pady=8)
+        ctk.CTkButton(self.sidebar, text="Dashboard", command=self.show_dashboard).pack(fill="x", padx=20, pady=8)
 
-        ctk.CTkButton(
-            self.sidebar,
-            text="New Trade",
-            command=self.show_new_trade
-        ).pack(fill="x", padx=20, pady=8)
-
-        ctk.CTkButton(
-            self.sidebar,
-            text="Open Trades",
-            command=self.open_trades
-        ).pack(fill="x", padx=20, pady=8)
-
-        ctk.CTkButton(
-            self.sidebar,
-            text="History",
-            command=self.open_history
-        ).pack(fill="x", padx=20, pady=8)
-
-        ctk.CTkButton(
-            self.sidebar,
-            text="Dashboard",
-            command=self.open_dashboard
-        ).pack(fill="x", padx=20, pady=8)
-
-        ctk.CTkLabel(
-            self.sidebar,
-            text="v1.1",
-            font=("Arial", 12)
-        ).pack(side="bottom", pady=20)
+        ctk.CTkLabel(self.sidebar, text="v1.2", font=("Arial", 12)).pack(side="bottom", pady=20)
 
         self.show_new_trade()
 
@@ -94,11 +64,7 @@ class Home(ctk.CTk):
     def show_new_trade(self):
         self.clear_main()
 
-        ctk.CTkLabel(
-            self.main,
-            text="New Trade",
-            font=("Arial", 30, "bold")
-        ).pack(pady=(25, 15))
+        ctk.CTkLabel(self.main, text="New Trade", font=("Arial", 30, "bold")).pack(pady=(25, 15))
 
         body = ctk.CTkFrame(self.main)
         body.pack(fill="both", expand=True, padx=20, pady=20)
@@ -117,55 +83,171 @@ class Home(ctk.CTk):
         self.link = ctk.CTkEntry(link_row, width=390)
         self.link.pack(side="left", padx=(0, 10))
 
-        ctk.CTkButton(
-            link_row,
-            text="Paste",
-            width=90,
-            command=self.paste_link
-        ).pack(side="left")
+        ctk.CTkButton(link_row, text="Paste", width=90, command=self.paste_link).pack(side="left")
 
         ctk.CTkLabel(left, text="Entry").pack(anchor="w", padx=20, pady=(15, 5))
-
         self.entry = ctk.CTkEntry(left, width=200)
         self.entry.pack(padx=20)
 
         ctk.CTkLabel(left, text="Risk (%)").pack(anchor="w", padx=20, pady=(15, 5))
-
         self.risk = ctk.CTkEntry(left, width=200)
         self.risk.insert(0, "1")
         self.risk.pack(padx=20)
 
         ctk.CTkLabel(left, text="Reason").pack(anchor="w", padx=20, pady=(15, 5))
-
         self.reason = ctk.CTkTextbox(left, width=500, height=180)
         self.reason.pack(padx=20)
 
-        ctk.CTkButton(
-            left,
-            text="Preview",
-            command=self.preview_trade
-        ).pack(pady=(25, 10))
+        ctk.CTkButton(left, text="Preview", command=self.preview_trade).pack(pady=(25, 10))
+        ctk.CTkButton(left, text="Send To Telegram", command=self.send_trade).pack()
+        ctk.CTkButton(left, text="Clear", command=self.clear).pack(pady=10)
 
-        ctk.CTkButton(
-            left,
-            text="Send To Telegram",
-            command=self.send_trade
-        ).pack()
-
-        ctk.CTkButton(
-            left,
-            text="Clear",
-            command=self.clear
-        ).pack(pady=10)
-
-        ctk.CTkLabel(
-            right,
-            text="Preview",
-            font=("Arial", 22, "bold")
-        ).pack(pady=20)
-
+        ctk.CTkLabel(right, text="Preview", font=("Arial", 22, "bold")).pack(pady=20)
         self.preview = ctk.CTkTextbox(right, width=560, height=560)
         self.preview.pack(padx=20)
+
+    def show_open_trades(self):
+        self.clear_main()
+
+        ctk.CTkLabel(self.main, text="Open Trades", font=("Arial", 30, "bold")).pack(pady=(25, 5))
+        ctk.CTkLabel(self.main, text="Manage active trades and post results").pack(pady=(0, 15))
+
+        scroll = ctk.CTkScrollableFrame(self.main)
+        scroll.pack(fill="both", expand=True, padx=25, pady=15)
+
+        rows = get_open_trades()
+
+        if not rows:
+            ctk.CTkLabel(scroll, text="No open trades.", font=("Arial", 20, "bold")).pack(pady=60)
+            return
+
+        for row in rows:
+            trade = {
+                "id": row[0],
+                "trade_number": row[1],
+                "symbol": row[2],
+                "direction": row[3],
+                "entry": row[4],
+                "sl": row[5],
+                "tp": row[6],
+                "rr": row[7],
+                "created_at": row[8]
+            }
+
+            self.create_open_trade_card(scroll, trade)
+
+    def create_open_trade_card(self, parent, trade):
+        direction = trade["direction"].upper()
+
+        border_colour = "#22C55E" if direction == "BUY" else "#EF4444"
+        badge_colour = "#14532D" if direction == "BUY" else "#7F1D1D"
+
+        card = ctk.CTkFrame(parent, border_width=2, border_color=border_colour)
+        card.pack(fill="x", padx=20, pady=12)
+
+        top = ctk.CTkFrame(card, fg_color="transparent")
+        top.pack(fill="x", padx=20, pady=(18, 8))
+
+        ctk.CTkLabel(top, text=trade["trade_number"], font=("Arial", 22, "bold")).pack(side="left")
+        ctk.CTkLabel(top, text=direction, fg_color=badge_colour, corner_radius=8, width=90, height=32).pack(side="right")
+
+        ctk.CTkLabel(card, text=trade["symbol"], font=("Arial", 34, "bold")).pack(anchor="w", padx=20, pady=(0, 12))
+
+        details = ctk.CTkFrame(card)
+        details.pack(fill="x", padx=20, pady=(0, 15))
+
+        self.stat(details, "Entry", trade["entry"], 0)
+        self.stat(details, "SL", trade["sl"], 1)
+        self.stat(details, "TP", trade["tp"], 2)
+        self.stat(details, "RR", f"1:{trade['rr']}", 3)
+
+        buttons = ctk.CTkFrame(card, fg_color="transparent")
+        buttons.pack(anchor="w", padx=20, pady=(0, 18))
+
+        ctk.CTkButton(buttons, text="TP", width=120, fg_color="#16A34A",
+                      command=lambda: self.finish_trade(trade, "TP")).grid(row=0, column=0, padx=(0, 10))
+
+        ctk.CTkButton(buttons, text="SL", width=120, fg_color="#DC2626",
+                      command=lambda: self.finish_trade(trade, "SL")).grid(row=0, column=1, padx=10)
+
+        ctk.CTkButton(buttons, text="Manual", width=120,
+                      command=lambda: self.finish_trade(trade, "MANUAL")).grid(row=0, column=2, padx=10)
+
+    def stat(self, parent, label, value, column):
+        box = ctk.CTkFrame(parent)
+        box.grid(row=0, column=column, padx=8, pady=10, sticky="nsew")
+        parent.grid_columnconfigure(column, weight=1)
+
+        ctk.CTkLabel(box, text=label, font=("Arial", 13)).pack(pady=(10, 2))
+        ctk.CTkLabel(box, text=str(value), font=("Arial", 18, "bold")).pack(pady=(0, 10))
+
+    def show_history(self):
+        self.clear_main()
+
+        ctk.CTkLabel(self.main, text="Trade History", font=("Arial", 30, "bold")).pack(pady=(25, 15))
+
+        box = ctk.CTkTextbox(self.main, width=950, height=600)
+        box.pack(padx=25, pady=15, fill="both", expand=True)
+
+        conn = sqlite3.connect("database.db")
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        SELECT trade_number, symbol, direction, entry, stop_loss, take_profit, rr, status, result, profit, created_at
+        FROM trades
+        ORDER BY id DESC
+        """)
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        box.insert("end", "Trade | Symbol | Dir | Entry | SL | TP | RR | Status | Result | Profit | Date\n")
+        box.insert("end", "-" * 130 + "\n\n")
+
+        for row in rows:
+            box.insert("end", f"{row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]} | {row[6]} | {row[7]} | {row[8]} | £{row[9]} | {row[10]}\n")
+
+    def show_dashboard(self):
+        self.clear_main()
+
+        stats = calculate_dashboard_stats()
+
+        ctk.CTkLabel(self.main, text="Dashboard", font=("Arial", 30, "bold")).pack(pady=(25, 15))
+
+        scroll = ctk.CTkScrollableFrame(self.main)
+        scroll.pack(fill="both", expand=True, padx=25, pady=15)
+
+        chart_path = generate_equity_curve()
+        chart_image = ctk.CTkImage(
+            light_image=Image.open(chart_path),
+            dark_image=Image.open(chart_path),
+            size=(850, 425)
+        )
+
+        chart_label = ctk.CTkLabel(scroll, text="", image=chart_image)
+        chart_label.pack(pady=(10, 25))
+
+        stat_items = [
+            ("Closed Trades", stats["total_closed"]),
+            ("Wins", stats["wins"]),
+            ("Losses", stats["losses"]),
+            ("Win Rate", f"{stats['win_rate']}%"),
+            ("Total Profit", f"£{stats['total_profit']}"),
+            ("Average Win", f"£{stats['average_win']}"),
+            ("Average Loss", f"£{stats['average_loss']}"),
+            ("Largest Win", f"£{stats['largest_win']}"),
+            ("Largest Loss", f"£{stats['largest_loss']}"),
+            ("Profit Factor", stats["profit_factor"]),
+            ("Average RR", f"1:{stats['average_rr']}"),
+            ("Expectancy", f"£{stats['expectancy']}"),
+        ]
+
+        for title, value in stat_items:
+            card = ctk.CTkFrame(scroll)
+            card.pack(fill="x", pady=8, padx=10)
+
+            ctk.CTkLabel(card, text=title, font=("Arial", 16)).pack(pady=(12, 3))
+            ctk.CTkLabel(card, text=str(value), font=("Arial", 26, "bold")).pack(pady=(0, 12))
 
     def paste_link(self):
         self.link.delete(0, "end")
@@ -186,13 +268,9 @@ class Home(ctk.CTk):
                 "reason": self.reason.get("1.0", "end").strip()
             }
 
-            trade["rr"] = calculate_rr(
-                trade["entry"],
-                trade["sl"],
-                trade["tp"]
-            )
-
+            trade["rr"] = calculate_rr(trade["entry"], trade["sl"], trade["tp"])
             trade["message"] = format_trade(trade)
+
             self.current_trade = trade
 
             self.preview.delete("1.0", "end")
@@ -224,14 +302,35 @@ class Home(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    def open_history(self):
-        History(self)
+    def finish_trade(self, trade, result):
+        profit = simpledialog.askfloat(
+            "Profit / Loss",
+            "Enter profit or loss amount (£):"
+        )
 
-    def open_trades(self):
-        OpenTrades(self)
+        if profit is None:
+            return
 
-    def open_dashboard(self):
-        Dashboard(self)
+        close_trade(trade["id"], result, profit)
+
+        result_message = format_result(
+            trade["trade_number"],
+            trade["symbol"],
+            trade["direction"],
+            result,
+            profit
+        )
+
+        image_path = generate_result_image(trade, result, profit)
+
+        sent = send_photo(image_path, caption=result_message)
+
+        if sent:
+            messagebox.showinfo("Trade Closed", f"Trade closed as {result} and posted to Telegram.")
+        else:
+            messagebox.showerror("Error", "Trade closed, but Telegram failed.")
+
+        self.show_open_trades()
 
     def clear(self):
         self.current_trade = None
