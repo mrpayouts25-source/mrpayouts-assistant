@@ -7,6 +7,14 @@ def get_connection():
     return sqlite3.connect(DB_NAME)
 
 
+def add_column_if_missing(cursor, table, column, column_type):
+    cursor.execute(f"PRAGMA table_info({table})")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if column not in columns:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+
+
 def initialise_database():
     conn = get_connection()
     cursor = conn.cursor()
@@ -31,6 +39,12 @@ def initialise_database():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    add_column_if_missing(cursor, "trades", "followed_plan", "TEXT")
+    add_column_if_missing(cursor, "trades", "mistake", "TEXT")
+    add_column_if_missing(cursor, "trades", "emotion", "TEXT")
+    add_column_if_missing(cursor, "trades", "lesson", "TEXT")
+    add_column_if_missing(cursor, "trades", "journal_notes", "TEXT")
 
     conn.commit()
     conn.close()
@@ -127,6 +141,32 @@ def close_trade(trade_id, result, profit):
         result,
         profit,
         trade_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+def update_trade_notes(trade_number, followed_plan, mistake, emotion, lesson, journal_notes):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    UPDATE trades
+    SET
+        followed_plan=?,
+        mistake=?,
+        emotion=?,
+        lesson=?,
+        journal_notes=?
+    WHERE trade_number=?
+    """, (
+        followed_plan,
+        mistake,
+        emotion,
+        lesson,
+        journal_notes,
+        trade_number
     ))
 
     conn.commit()
