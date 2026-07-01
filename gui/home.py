@@ -32,6 +32,7 @@ class Home(ctk.CTk):
         self.geometry("1280x760")
 
         self.current_trade = None
+        self.history_filter = "ALL"
 
         self.build_ui()
 
@@ -54,7 +55,7 @@ class Home(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="History", command=self.show_history).pack(fill="x", padx=20, pady=8)
         ctk.CTkButton(self.sidebar, text="Dashboard", command=self.show_dashboard).pack(fill="x", padx=20, pady=8)
 
-        ctk.CTkLabel(self.sidebar, text="v1.4", font=("Arial", 12)).pack(side="bottom", pady=20)
+        ctk.CTkLabel(self.sidebar, text="v1.5", font=("Arial", 12)).pack(side="bottom", pady=20)
 
         self.show_new_trade()
 
@@ -134,7 +135,6 @@ class Home(ctk.CTk):
                 "rr": row[7],
                 "created_at": row[8]
             }
-
             self.create_open_trade_card(scroll, trade)
 
     def create_open_trade_card(self, parent, trade):
@@ -182,11 +182,39 @@ class Home(ctk.CTk):
         ctk.CTkLabel(box, text=label, font=("Arial", 13)).pack(pady=(10, 2))
         ctk.CTkLabel(box, text=str(value), font=("Arial", 18, "bold")).pack(pady=(0, 10))
 
+    def set_history_filter(self, filter_name):
+        self.history_filter = filter_name
+        self.show_history()
+
     def show_history(self):
         self.clear_main()
 
         ctk.CTkLabel(self.main, text="Trade History", font=("Arial", 30, "bold")).pack(pady=(25, 5))
         ctk.CTkLabel(self.main, text="Review every trade, result and profit").pack(pady=(0, 15))
+
+        filters = ctk.CTkFrame(self.main)
+        filters.pack(fill="x", padx=25, pady=(0, 10))
+
+        filter_buttons = [
+            ("All", "ALL"),
+            ("Open", "OPEN"),
+            ("Closed", "CLOSED"),
+            ("Wins", "TP"),
+            ("Losses", "SL"),
+            ("Buy", "BUY"),
+            ("Sell", "SELL")
+        ]
+
+        for label, value in filter_buttons:
+            colour = "#2563EB" if self.history_filter == value else "#374151"
+
+            ctk.CTkButton(
+                filters,
+                text=label,
+                width=100,
+                fg_color=colour,
+                command=lambda v=value: self.set_history_filter(v)
+            ).pack(side="left", padx=6, pady=10)
 
         scroll = ctk.CTkScrollableFrame(self.main)
         scroll.pack(fill="both", expand=True, padx=25, pady=15)
@@ -216,8 +244,21 @@ class Home(ctk.CTk):
         rows = cursor.fetchall()
         conn.close()
 
+        if self.history_filter == "OPEN":
+            rows = [r for r in rows if r[7] == "OPEN"]
+        elif self.history_filter == "CLOSED":
+            rows = [r for r in rows if r[7] == "CLOSED"]
+        elif self.history_filter == "TP":
+            rows = [r for r in rows if r[8] == "TP"]
+        elif self.history_filter == "SL":
+            rows = [r for r in rows if r[8] == "SL"]
+        elif self.history_filter == "BUY":
+            rows = [r for r in rows if str(r[2]).upper() == "BUY"]
+        elif self.history_filter == "SELL":
+            rows = [r for r in rows if str(r[2]).upper() == "SELL"]
+
         if not rows:
-            ctk.CTkLabel(scroll, text="No trade history yet.", font=("Arial", 20, "bold")).pack(pady=60)
+            ctk.CTkLabel(scroll, text="No trades match this filter.", font=("Arial", 20, "bold")).pack(pady=60)
             return
 
         for row in rows:
@@ -278,11 +319,7 @@ class Home(ctk.CTk):
             font=("Arial", 14, "bold")
         ).pack(side="right")
 
-        ctk.CTkLabel(
-            card,
-            text=f"{trade['symbol']} {direction}",
-            font=("Arial", 34, "bold")
-        ).pack(anchor="w", padx=20, pady=(0, 12))
+        ctk.CTkLabel(card, text=f"{trade['symbol']} {direction}", font=("Arial", 34, "bold")).pack(anchor="w", padx=20, pady=(0, 12))
 
         details = ctk.CTkFrame(card)
         details.pack(fill="x", padx=20, pady=(0, 15))
@@ -305,12 +342,7 @@ class Home(ctk.CTk):
         profit_box.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         ctk.CTkLabel(profit_box, text="Profit / Loss", font=("Arial", 13)).pack(pady=(10, 2))
-        ctk.CTkLabel(
-            profit_box,
-            text=profit_text,
-            font=("Arial", 22, "bold"),
-            text_color=profit_colour
-        ).pack(pady=(0, 10))
+        ctk.CTkLabel(profit_box, text=profit_text, font=("Arial", 22, "bold"), text_color=profit_colour).pack(pady=(0, 10))
 
         status_box = ctk.CTkFrame(money_row)
         status_box.pack(side="left", fill="x", expand=True, padx=(8, 0))
@@ -323,24 +355,13 @@ class Home(ctk.CTk):
             reason_box.pack(fill="x", padx=20, pady=(0, 15))
 
             ctk.CTkLabel(reason_box, text="Reason", font=("Arial", 13)).pack(anchor="w", padx=15, pady=(10, 2))
-            ctk.CTkLabel(
-                reason_box,
-                text=trade["reason"],
-                font=("Arial", 15),
-                wraplength=850,
-                justify="left"
-            ).pack(anchor="w", padx=15, pady=(0, 12))
+            ctk.CTkLabel(reason_box, text=trade["reason"], font=("Arial", 15), wraplength=850, justify="left").pack(anchor="w", padx=15, pady=(0, 12))
 
         date_text = f"Opened: {trade['created_at']}"
         if trade["closed_at"]:
             date_text += f"   |   Closed: {trade['closed_at']}"
 
-        ctk.CTkLabel(
-            card,
-            text=date_text,
-            font=("Arial", 12),
-            text_color="#94A3B8"
-        ).pack(anchor="w", padx=20, pady=(0, 15))
+        ctk.CTkLabel(card, text=date_text, font=("Arial", 12), text_color="#94A3B8").pack(anchor="w", padx=20, pady=(0, 15))
 
     def show_dashboard(self):
         self.clear_main()
