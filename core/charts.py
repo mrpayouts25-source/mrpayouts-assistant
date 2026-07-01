@@ -37,20 +37,40 @@ def generate_equity_curve():
 
     path = "data/exports/equity_curve.png"
 
-    plt.figure(figsize=(8, 4))
+    bg = "#080B12"
+    panel = "#121826"
+    line = "#22C55E"
+    text = "#F8FAFC"
+    grid = "#334155"
+
+    plt.figure(figsize=(10, 5), facecolor=bg)
+    ax = plt.axes()
+    ax.set_facecolor(panel)
 
     if equity:
-        plt.plot(range(1, len(equity) + 1), equity, marker="o")
+        ax.plot(
+            range(1, len(equity) + 1),
+            equity,
+            marker="o",
+            linewidth=3,
+            color=line
+        )
     else:
-        plt.plot([0], [0], marker="o")
+        ax.plot([0], [0], marker="o", color=line)
 
-    plt.title("Equity Curve")
-    plt.xlabel("Closed Trades")
-    plt.ylabel("Profit (£)")
-    plt.grid(True)
+    ax.set_title("Equity Curve", color=text, fontsize=18, fontweight="bold")
+    ax.set_xlabel("Closed Trades", color=text)
+    ax.set_ylabel("Profit (£)", color=text)
+
+    ax.tick_params(colors=text)
+
+    for spine in ax.spines.values():
+        spine.set_color(grid)
+
+    ax.grid(True, color=grid, alpha=0.35)
 
     plt.tight_layout()
-    plt.savefig(path)
+    plt.savefig(path, facecolor=bg)
     plt.close()
 
     return path

@@ -17,6 +17,7 @@ from core.clipboard import paste
 from core.image_generator import generate_trade_image, generate_result_image
 from core.analytics import calculate_dashboard_stats
 from core.charts import generate_equity_curve
+from gui.components import StatCard
 
 
 class Home(ctk.CTk):
@@ -53,7 +54,7 @@ class Home(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="History", command=self.show_history).pack(fill="x", padx=20, pady=8)
         ctk.CTkButton(self.sidebar, text="Dashboard", command=self.show_dashboard).pack(fill="x", padx=20, pady=8)
 
-        ctk.CTkLabel(self.sidebar, text="v1.2", font=("Arial", 12)).pack(side="bottom", pady=20)
+        ctk.CTkLabel(self.sidebar, text="v1.4", font=("Arial", 12)).pack(side="bottom", pady=20)
 
         self.show_new_trade()
 
@@ -184,16 +185,30 @@ class Home(ctk.CTk):
     def show_history(self):
         self.clear_main()
 
-        ctk.CTkLabel(self.main, text="Trade History", font=("Arial", 30, "bold")).pack(pady=(25, 15))
+        ctk.CTkLabel(self.main, text="Trade History", font=("Arial", 30, "bold")).pack(pady=(25, 5))
+        ctk.CTkLabel(self.main, text="Review every trade, result and profit").pack(pady=(0, 15))
 
-        box = ctk.CTkTextbox(self.main, width=950, height=600)
-        box.pack(padx=25, pady=15, fill="both", expand=True)
+        scroll = ctk.CTkScrollableFrame(self.main)
+        scroll.pack(fill="both", expand=True, padx=25, pady=15)
 
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT trade_number, symbol, direction, entry, stop_loss, take_profit, rr, status, result, profit, created_at
+        SELECT
+            trade_number,
+            symbol,
+            direction,
+            entry,
+            stop_loss,
+            take_profit,
+            rr,
+            status,
+            result,
+            profit,
+            reason,
+            created_at,
+            closed_at
         FROM trades
         ORDER BY id DESC
         """)
@@ -201,11 +216,131 @@ class Home(ctk.CTk):
         rows = cursor.fetchall()
         conn.close()
 
-        box.insert("end", "Trade | Symbol | Dir | Entry | SL | TP | RR | Status | Result | Profit | Date\n")
-        box.insert("end", "-" * 130 + "\n\n")
+        if not rows:
+            ctk.CTkLabel(scroll, text="No trade history yet.", font=("Arial", 20, "bold")).pack(pady=60)
+            return
 
         for row in rows:
-            box.insert("end", f"{row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]} | {row[6]} | {row[7]} | {row[8]} | £{row[9]} | {row[10]}\n")
+            trade = {
+                "trade_number": row[0],
+                "symbol": row[1],
+                "direction": row[2],
+                "entry": row[3],
+                "sl": row[4],
+                "tp": row[5],
+                "rr": row[6],
+                "status": row[7],
+                "result": row[8],
+                "profit": row[9],
+                "reason": row[10],
+                "created_at": row[11],
+                "closed_at": row[12]
+            }
+
+            self.create_history_card(scroll, trade)
+
+    def create_history_card(self, parent, trade):
+        direction = str(trade["direction"]).upper()
+        status = trade["status"] or "OPEN"
+        result = trade["result"] or "OPEN"
+        profit = trade["profit"]
+
+        border_colour = "#22C55E" if direction == "BUY" else "#EF4444"
+
+        if result == "TP":
+            result_colour = "#22C55E"
+            result_badge = "TP ✅"
+        elif result == "SL":
+            result_colour = "#EF4444"
+            result_badge = "SL ❌"
+        elif result == "MANUAL":
+            result_colour = "#60A5FA"
+            result_badge = "MANUAL ⚪"
+        else:
+            result_colour = "#94A3B8"
+            result_badge = "OPEN"
+
+        card = ctk.CTkFrame(parent, border_width=2, border_color=border_colour)
+        card.pack(fill="x", padx=20, pady=12)
+
+        top = ctk.CTkFrame(card, fg_color="transparent")
+        top.pack(fill="x", padx=20, pady=(18, 8))
+
+        ctk.CTkLabel(top, text=trade["trade_number"], font=("Arial", 22, "bold")).pack(side="left")
+
+        ctk.CTkLabel(
+            top,
+            text=result_badge,
+            fg_color=result_colour,
+            corner_radius=8,
+            width=120,
+            height=32,
+            font=("Arial", 14, "bold")
+        ).pack(side="right")
+
+        ctk.CTkLabel(
+            card,
+            text=f"{trade['symbol']} {direction}",
+            font=("Arial", 34, "bold")
+        ).pack(anchor="w", padx=20, pady=(0, 12))
+
+        details = ctk.CTkFrame(card)
+        details.pack(fill="x", padx=20, pady=(0, 15))
+
+        self.stat(details, "Entry", trade["entry"], 0)
+        self.stat(details, "SL", trade["sl"], 1)
+        self.stat(details, "TP", trade["tp"], 2)
+        self.stat(details, "RR", f"1:{trade['rr']}", 3)
+
+        money_row = ctk.CTkFrame(card)
+        money_row.pack(fill="x", padx=20, pady=(0, 15))
+
+        profit_text = "OPEN" if profit is None else f"£{profit}"
+        profit_colour = "#94A3B8"
+
+        if profit is not None:
+            profit_colour = "#22C55E" if profit >= 0 else "#EF4444"
+
+        profit_box = ctk.CTkFrame(money_row)
+        profit_box.pack(side="left", fill="x", expand=True, padx=(0, 8))
+
+        ctk.CTkLabel(profit_box, text="Profit / Loss", font=("Arial", 13)).pack(pady=(10, 2))
+        ctk.CTkLabel(
+            profit_box,
+            text=profit_text,
+            font=("Arial", 22, "bold"),
+            text_color=profit_colour
+        ).pack(pady=(0, 10))
+
+        status_box = ctk.CTkFrame(money_row)
+        status_box.pack(side="left", fill="x", expand=True, padx=(8, 0))
+
+        ctk.CTkLabel(status_box, text="Status", font=("Arial", 13)).pack(pady=(10, 2))
+        ctk.CTkLabel(status_box, text=status, font=("Arial", 22, "bold")).pack(pady=(0, 10))
+
+        if trade["reason"]:
+            reason_box = ctk.CTkFrame(card)
+            reason_box.pack(fill="x", padx=20, pady=(0, 15))
+
+            ctk.CTkLabel(reason_box, text="Reason", font=("Arial", 13)).pack(anchor="w", padx=15, pady=(10, 2))
+            ctk.CTkLabel(
+                reason_box,
+                text=trade["reason"],
+                font=("Arial", 15),
+                wraplength=850,
+                justify="left"
+            ).pack(anchor="w", padx=15, pady=(0, 12))
+
+        date_text = f"Opened: {trade['created_at']}"
+        if trade["closed_at"]:
+            date_text += f"   |   Closed: {trade['closed_at']}"
+
+        ctk.CTkLabel(
+            card,
+            text=date_text,
+            font=("Arial", 12),
+            text_color="#94A3B8"
+        ).pack(anchor="w", padx=20, pady=(0, 15))
 
     def show_dashboard(self):
         self.clear_main()
@@ -227,27 +362,31 @@ class Home(ctk.CTk):
         chart_label = ctk.CTkLabel(scroll, text="", image=chart_image)
         chart_label.pack(pady=(10, 25))
 
+        grid = ctk.CTkFrame(scroll)
+        grid.pack(fill="x", padx=20, pady=20)
+
         stat_items = [
+            ("Win Rate", f"{stats['win_rate']}%"),
+            ("Total P/L", f"£{stats['total_profit']}"),
+            ("Average RR", f"1:{stats['average_rr']}"),
             ("Closed Trades", stats["total_closed"]),
             ("Wins", stats["wins"]),
             ("Losses", stats["losses"]),
-            ("Win Rate", f"{stats['win_rate']}%"),
-            ("Total Profit", f"£{stats['total_profit']}"),
             ("Average Win", f"£{stats['average_win']}"),
             ("Average Loss", f"£{stats['average_loss']}"),
+            ("Profit Factor", stats["profit_factor"]),
+            ("Expectancy", f"£{stats['expectancy']}"),
             ("Largest Win", f"£{stats['largest_win']}"),
             ("Largest Loss", f"£{stats['largest_loss']}"),
-            ("Profit Factor", stats["profit_factor"]),
-            ("Average RR", f"1:{stats['average_rr']}"),
-            ("Expectancy", f"£{stats['expectancy']}"),
         ]
 
-        for title, value in stat_items:
-            card = ctk.CTkFrame(scroll)
-            card.pack(fill="x", pady=8, padx=10)
+        for index, (title, value) in enumerate(stat_items):
+            row = index // 3
+            column = index % 3
 
-            ctk.CTkLabel(card, text=title, font=("Arial", 16)).pack(pady=(12, 3))
-            ctk.CTkLabel(card, text=str(value), font=("Arial", 26, "bold")).pack(pady=(0, 12))
+            card = StatCard(grid, title, value)
+            card.grid(row=row, column=column, padx=10, pady=10, sticky="nsew")
+            grid.grid_columnconfigure(column, weight=1)
 
     def paste_link(self):
         self.link.delete(0, "end")
