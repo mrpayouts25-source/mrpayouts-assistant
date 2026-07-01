@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 DB_NAME = "database.db"
 
@@ -125,6 +126,46 @@ def get_open_trades():
     return rows
 
 
+def get_trade_by_number(trade_number):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT
+        id,
+        trade_number,
+        symbol,
+        direction,
+        entry,
+        stop_loss,
+        take_profit,
+        rr,
+        created_at,
+        status
+    FROM trades
+    WHERE trade_number=?
+    """, (trade_number,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if row is None:
+        return None
+
+    return {
+        "id": row[0],
+        "trade_number": row[1],
+        "symbol": row[2],
+        "direction": row[3],
+        "entry": row[4],
+        "sl": row[5],
+        "tp": row[6],
+        "rr": row[7],
+        "created_at": row[8],
+        "status": row[9]
+    }
+
+
 def close_trade(trade_id, result, profit):
     conn = get_connection()
     cursor = conn.cursor()
@@ -145,6 +186,29 @@ def close_trade(trade_id, result, profit):
 
     conn.commit()
     conn.close()
+
+
+def calculate_duration(created_at):
+    try:
+        opened = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+        closed = datetime.now()
+
+        diff = closed - opened
+
+        days = diff.days
+        hours = diff.seconds // 3600
+        minutes = (diff.seconds % 3600) // 60
+
+        if days > 0:
+            return f"{days}d {hours}h {minutes}m"
+
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+
+        return f"{minutes}m"
+
+    except Exception:
+        return "N/A"
 
 
 def update_trade_notes(trade_number, followed_plan, mistake, emotion, lesson, journal_notes):

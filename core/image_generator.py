@@ -17,9 +17,9 @@ def load_font(size, bold=False):
     return ImageFont.load_default()
 
 
-def draw_wrapped_text(draw, text, position, font, fill, max_width, line_spacing=10):
+def draw_wrapped_text(draw, text, position, font, fill, max_width, line_spacing=10, max_lines=5):
     x, y = position
-    words = text.split()
+    words = str(text).split()
     lines = []
     current_line = ""
 
@@ -30,47 +30,61 @@ def draw_wrapped_text(draw, text, position, font, fill, max_width, line_spacing=
         if bbox[2] - bbox[0] <= max_width:
             current_line = test_line
         else:
-            lines.append(current_line)
+            if current_line:
+                lines.append(current_line)
             current_line = word
 
     if current_line:
         lines.append(current_line)
 
-    for line in lines[:5]:
+    for line in lines[:max_lines]:
         draw.text((x, y), line, font=font, fill=fill)
         y += font.size + line_spacing
 
 
-def generate_trade_image(trade):
+def base_canvas(subtitle):
     width = 1080
     height = 1350
 
     bg = "#080B12"
     card = "#121826"
-    inner = "#0B0F19"
     gold = "#D4AF37"
-    white = "#F8FAFC"
     muted = "#94A3B8"
-    green = "#22C55E"
-    red = "#EF4444"
 
     image = Image.new("RGB", (width, height), bg)
     draw = ImageDraw.Draw(image)
 
     title_font = load_font(74, bold=True)
     subtitle_font = load_font(34)
-    label_font = load_font(30, bold=True)
-    value_font = load_font(48, bold=True)
-    small_font = load_font(30)
-    badge_font = load_font(58, bold=True)
-
-    direction = trade["direction"].upper()
-    direction_colour = green if direction == "BUY" else red
 
     draw.rounded_rectangle((50, 50, width - 50, height - 50), radius=45, fill=card)
 
     draw.text((90, 90), "MRPAYOUTS", font=title_font, fill=gold)
-    draw.text((95, 175), "Signals • Personal Trading Journal", font=subtitle_font, fill=muted)
+    draw.text((95, 175), subtitle, font=subtitle_font, fill=muted)
+
+    return image, draw
+
+
+def generate_trade_image(trade):
+    width = 1080
+    height = 1350
+
+    inner = "#0B0F19"
+    white = "#F8FAFC"
+    muted = "#94A3B8"
+    green = "#22C55E"
+    red = "#EF4444"
+
+    image, draw = base_canvas("Signals • Personal Trading Journal")
+
+    value_font = load_font(48, bold=True)
+    label_font = load_font(30, bold=True)
+    small_font = load_font(30)
+    subtitle_font = load_font(34)
+    badge_font = load_font(58, bold=True)
+
+    direction = trade["direction"].upper()
+    direction_colour = green if direction == "BUY" else red
 
     draw.text((90, 270), f"TRADE {trade['trade_number']}", font=value_font, fill=white)
 
@@ -84,7 +98,7 @@ def generate_trade_image(trade):
         ("ENTRY", trade["entry"]),
         ("STOP LOSS", trade["sl"]),
         ("TAKE PROFIT", trade["tp"]),
-        ("RISK", f"{trade['risk']}%"),
+        ("RISK", "1%"),
         ("RR", f"1:{trade['rr']}")
     ]
 
@@ -94,13 +108,12 @@ def generate_trade_image(trade):
         y += 125
 
     reason_y = 1110
-
     draw.rounded_rectangle((90, reason_y, 990, 1245), radius=30, fill=inner)
-    draw.text((120, reason_y + 25), "REASON", font=label_font, fill=muted)
+    draw.text((120, reason_y + 25), "STRATEGY", font=label_font, fill=muted)
 
     draw_wrapped_text(
         draw,
-        trade["reason"],
+        "HTF Bias • LTF Confirmation",
         (120, reason_y + 70),
         small_font,
         white,
@@ -126,33 +139,23 @@ def generate_result_image(trade, result, profit):
     width = 1080
     height = 1350
 
-    bg = "#080B12"
-    card = "#121826"
     inner = "#0B0F19"
-    gold = "#D4AF37"
     white = "#F8FAFC"
     muted = "#94A3B8"
     green = "#22C55E"
     red = "#EF4444"
     grey = "#CBD5E1"
 
-    image = Image.new("RGB", (width, height), bg)
-    draw = ImageDraw.Draw(image)
+    image, draw = base_canvas("Trade Result")
 
-    title_font = load_font(74, bold=True)
-    subtitle_font = load_font(34)
     label_font = load_font(30, bold=True)
     value_font = load_font(58, bold=True)
     big_font = load_font(96, bold=True)
+    subtitle_font = load_font(34)
     small_font = load_font(30)
 
     result = result.upper()
     result_colour = green if result == "TP" else red if result == "SL" else grey
-
-    draw.rounded_rectangle((50, 50, width - 50, height - 50), radius=45, fill=card)
-
-    draw.text((90, 90), "MRPAYOUTS", font=title_font, fill=gold)
-    draw.text((95, 175), "Trade Result", font=subtitle_font, fill=muted)
 
     draw.text((90, 270), f"TRADE {trade['trade_number']}", font=value_font, fill=white)
 
@@ -179,6 +182,56 @@ def generate_result_image(trade, result, profit):
     os.makedirs("data/exports", exist_ok=True)
 
     path = f"data/exports/result_{trade['trade_number'].replace('#', '')}_{trade['symbol']}_{result}.png"
+    image.save(path)
+
+    return path
+
+
+def generate_update_image(trade, title, main_text):
+    inner = "#0B0F19"
+    white = "#F8FAFC"
+    muted = "#94A3B8"
+    gold = "#D4AF37"
+
+    image, draw = base_canvas("Trade Update")
+
+    label_font = load_font(30, bold=True)
+    value_font = load_font(58, bold=True)
+    big_font = load_font(82, bold=True)
+    subtitle_font = load_font(34)
+    small_font = load_font(30)
+
+    draw.text((90, 270), f"TRADE {trade['trade_number']}", font=value_font, fill=white)
+
+    draw.rounded_rectangle((90, 370, 990, 570), radius=40, fill=inner)
+    draw.text((130, 410), title.upper(), font=big_font, fill=gold)
+    draw.text((130, 505), f"{trade['symbol']} • {trade['direction']}", font=subtitle_font, fill=white)
+
+    draw.rounded_rectangle((90, 680, 990, 1040), radius=40, fill=inner)
+    draw.text((130, 720), "UPDATE", font=label_font, fill=muted)
+
+    draw_wrapped_text(
+        draw,
+        main_text,
+        (130, 780),
+        value_font,
+        white,
+        780,
+        line_spacing=18,
+        max_lines=4
+    )
+
+    draw.text(
+        (90, 1275),
+        "Not financial advice. Trade at your own risk.",
+        font=small_font,
+        fill=muted
+    )
+
+    os.makedirs("data/exports", exist_ok=True)
+
+    safe_title = title.lower().replace(" ", "_")
+    path = f"data/exports/update_{trade['trade_number'].replace('#', '')}_{trade['symbol']}_{safe_title}.png"
     image.save(path)
 
     return path
