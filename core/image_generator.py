@@ -4,15 +4,18 @@ import os
 
 def load_font(size, bold=False):
     possible_fonts = [
+        # Railway / Linux
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+
+        # macOS
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
         "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
     ]
 
     for font_path in possible_fonts:
-        try:
+        if os.path.exists(font_path):
             return ImageFont.truetype(font_path, size)
-        except:
-            pass
 
     return ImageFont.load_default()
 
@@ -66,9 +69,6 @@ def base_canvas(subtitle):
 
 
 def generate_trade_image(trade):
-    width = 1080
-    height = 1350
-
     inner = "#0B0F19"
     white = "#F8FAFC"
     muted = "#94A3B8"
@@ -136,9 +136,6 @@ def generate_trade_image(trade):
 
 
 def generate_result_image(trade, result, profit):
-    width = 1080
-    height = 1350
-
     inner = "#0B0F19"
     white = "#F8FAFC"
     muted = "#94A3B8"
