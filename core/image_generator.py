@@ -6,18 +6,31 @@ def load_font(size, bold=False):
     possible_fonts = [
         # Railway / Linux
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
 
-        # macOS
+        # Matplotlib bundled fonts
+        "/opt/venv/lib/python3.11/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans-Bold.ttf" if bold else "/opt/venv/lib/python3.11/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf",
+        "/app/.venv/lib/python3.11/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans-Bold.ttf" if bold else "/app/.venv/lib/python3.11/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf",
+
+        # Mac
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
         "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
     ]
 
     for font_path in possible_fonts:
         if os.path.exists(font_path):
-            return ImageFont.truetype(font_path, size)
+            try:
+                return ImageFont.truetype(font_path, size)
+            except Exception:
+                pass
 
-    return ImageFont.load_default()
+    try:
+        import matplotlib.font_manager as fm
+        font_name = "DejaVu Sans Bold" if bold else "DejaVu Sans"
+        font_path = fm.findfont(font_name, fallback_to_default=True)
+        return ImageFont.truetype(font_path, size)
+    except Exception:
+        return ImageFont.load_default()
 
 
 def draw_wrapped_text(draw, text, position, font, fill, max_width, line_spacing=10, max_lines=5):
@@ -194,7 +207,7 @@ def generate_update_image(trade, title, main_text):
 
     label_font = load_font(30, bold=True)
     value_font = load_font(58, bold=True)
-    big_font = load_font(82, bold=True)
+    big_font = load_font(72, bold=True)
     subtitle_font = load_font(34)
     small_font = load_font(30)
 
