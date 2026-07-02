@@ -41,7 +41,6 @@ def initialise_database():
 
 def save_trade(trade):
     initialise_database()
-
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -71,7 +70,6 @@ def save_trade(trade):
 
 def get_next_trade_number():
     initialise_database()
-
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -79,13 +77,11 @@ def get_next_trade_number():
     count = cursor.fetchone()[0]
 
     conn.close()
-
     return f"#{count + 1:03d}"
 
 
 def get_open_trades():
     initialise_database()
-
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -99,13 +95,11 @@ def get_open_trades():
 
     rows = cursor.fetchall()
     conn.close()
-
     return rows
 
 
 def get_trade_by_number(trade_number):
     initialise_database()
-
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -138,7 +132,6 @@ def get_trade_by_number(trade_number):
 
 def close_trade(trade_id, result, profit):
     initialise_database()
-
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -157,16 +150,11 @@ def close_trade(trade_id, result, profit):
 
 def reset_database():
     initialise_database()
-
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("DELETE FROM trades")
-
-    try:
-        cursor.execute("DELETE FROM sqlite_sequence WHERE name='trades'")
-    except Exception:
-        pass
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='trades'")
 
     conn.commit()
     conn.close()
@@ -176,7 +164,6 @@ def calculate_duration(created_at):
     try:
         opened = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
         closed = datetime.now()
-
         diff = closed - opened
 
         days = diff.days
@@ -185,10 +172,8 @@ def calculate_duration(created_at):
 
         if days > 0:
             return f"{days}d {hours}h {minutes}m"
-
         if hours > 0:
             return f"{hours}h {minutes}m"
-
         return f"{minutes}m"
 
     except Exception:
