@@ -1,7 +1,9 @@
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 
-DB_NAME = "database.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_NAME = BASE_DIR / "database.db"
 
 
 def get_connection():
@@ -153,6 +155,23 @@ def close_trade(trade_id, result, profit):
     conn.close()
 
 
+def reset_database():
+    initialise_database()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM trades")
+
+    try:
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name='trades'")
+    except Exception:
+        pass
+
+    conn.commit()
+    conn.close()
+
+
 def calculate_duration(created_at):
     try:
         opened = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
@@ -176,18 +195,4 @@ def calculate_duration(created_at):
         return "N/A"
 
 
-def reset_database():
-    initialise_database()
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("DELETE FROM trades")
-
-    try:
-        cursor.execute("DELETE FROM sqlite_sequence WHERE name='trades'")
-    except Exception:
-        pass
-
-    conn.commit()
-    conn.close()
+initialise_database()
