@@ -456,7 +456,10 @@ async def set_commands(app):
     await app.bot.set_my_commands(commands)
 
 
-def main():initialise_database()pp = Application.builder().token(BOT_TOKEN).post_init(set_commands).build()
+def main():
+    initialise_database()
+
+    app = Application.builder().token(BOT_TOKEN).post_init(set_commands).build()
 
     signal_conversation = ConversationHandler(
         entry_points=[CommandHandler("signal", signal)],
