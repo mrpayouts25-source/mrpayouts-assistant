@@ -21,6 +21,7 @@ from core.formatter import (
     format_recap
 )
 from core.database import (
+    initialise_database,
     save_trade,
     get_next_trade_number,
     get_trade_by_number,
@@ -455,8 +456,7 @@ async def set_commands(app):
     await app.bot.set_my_commands(commands)
 
 
-def main():
-    app = Application.builder().token(BOT_TOKEN).post_init(set_commands).build()
+def main():initialise_database()pp = Application.builder().token(BOT_TOKEN).post_init(set_commands).build()
 
     signal_conversation = ConversationHandler(
         entry_points=[CommandHandler("signal", signal)],
