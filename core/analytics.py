@@ -1,10 +1,14 @@
 import sqlite3
 from datetime import datetime, timedelta
 
+from core.database import initialise_database
+
 DB_NAME = "database.db"
 
 
 def fetch_closed_trades():
+    initialise_database()
+
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
