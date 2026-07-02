@@ -8,20 +8,12 @@ def get_connection():
     return sqlite3.connect(DB_NAME)
 
 
-def add_column_if_missing(cursor, table, column, column_type):
-    cursor.execute(f"PRAGMA table_info({table})")
-    columns = [row[1] for row in cursor.fetchall()]
-
-    if column not in columns:
-        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
-
-
 def initialise_database():
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS trades(
+    CREATE TABLE IF NOT EXISTS trades (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         trade_number TEXT,
         symbol TEXT,
@@ -41,35 +33,22 @@ def initialise_database():
     )
     """)
 
-    add_column_if_missing(cursor, "trades", "followed_plan", "TEXT")
-    add_column_if_missing(cursor, "trades", "mistake", "TEXT")
-    add_column_if_missing(cursor, "trades", "emotion", "TEXT")
-    add_column_if_missing(cursor, "trades", "lesson", "TEXT")
-    add_column_if_missing(cursor, "trades", "journal_notes", "TEXT")
-
     conn.commit()
     conn.close()
 
 
 def save_trade(trade):
+    initialise_database()
+
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    INSERT INTO trades(
-        trade_number,
-        symbol,
-        direction,
-        entry,
-        stop_loss,
-        take_profit,
-        risk,
-        rr,
-        reason,
-        telegram_message,
-        status
+    INSERT INTO trades (
+        trade_number, symbol, direction, entry, stop_loss,
+        take_profit, risk, rr, reason, telegram_message, status
     )
-    VALUES(?,?,?,?,?,?,?,?,?,?,?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         trade["trade_number"],
         trade["symbol"],
@@ -89,6 +68,8 @@ def save_trade(trade):
 
 
 def get_next_trade_number():
+    initialise_database()
+
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -101,20 +82,14 @@ def get_next_trade_number():
 
 
 def get_open_trades():
+    initialise_database()
+
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT
-        id,
-        trade_number,
-        symbol,
-        direction,
-        entry,
-        stop_loss,
-        take_profit,
-        rr,
-        created_at
+    SELECT id, trade_number, symbol, direction, entry,
+           stop_loss, take_profit, rr, created_at
     FROM trades
     WHERE status='OPEN'
     ORDER BY id DESC
@@ -127,21 +102,14 @@ def get_open_trades():
 
 
 def get_trade_by_number(trade_number):
+    initialise_database()
+
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT
-        id,
-        trade_number,
-        symbol,
-        direction,
-        entry,
-        stop_loss,
-        take_profit,
-        rr,
-        created_at,
-        status
+    SELECT id, trade_number, symbol, direction, entry,
+           stop_loss, take_profit, rr, created_at, status
     FROM trades
     WHERE trade_number=?
     """, (trade_number,))
@@ -167,22 +135,19 @@ def get_trade_by_number(trade_number):
 
 
 def close_trade(trade_id, result, profit):
+    initialise_database()
+
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
     UPDATE trades
-    SET
-        status='CLOSED',
+    SET status='CLOSED',
         result=?,
         profit=?,
         closed_at=CURRENT_TIMESTAMP
     WHERE id=?
-    """, (
-        result,
-        profit,
-        trade_id
-    ))
+    """, (result, profit, trade_id))
 
     conn.commit()
     conn.close()
@@ -209,29 +174,3 @@ def calculate_duration(created_at):
 
     except Exception:
         return "N/A"
-
-
-def update_trade_notes(trade_number, followed_plan, mistake, emotion, lesson, journal_notes):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    UPDATE trades
-    SET
-        followed_plan=?,
-        mistake=?,
-        emotion=?,
-        lesson=?,
-        journal_notes=?
-    WHERE trade_number=?
-    """, (
-        followed_plan,
-        mistake,
-        emotion,
-        lesson,
-        journal_notes,
-        trade_number
-    ))
-
-    conn.commit()
-    conn.close()
