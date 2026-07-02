@@ -174,3 +174,20 @@ def calculate_duration(created_at):
 
     except Exception:
         return "N/A"
+
+
+def reset_database():
+    initialise_database()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM trades")
+
+    try:
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name='trades'")
+    except Exception:
+        pass
+
+    conn.commit()
+    conn.close()
